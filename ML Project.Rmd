@@ -1,0 +1,71 @@
+---
+title: "Practical Machine Learning Project"
+output: html_document
+---
+
+Performing Data Cleaning
+--------------------------
+- Read the pml training data 
+- Substitute empty cell value, "#DIV/0!" and "NA"" cell value to R NA value
+```{r read, cache=TRUE}
+library(caret)
+trainData = read.csv("pml-training.csv",header=TRUE,na.strings=c("","#DIV/0!","NA"))
+```
+- Get a logical matrix of the data frame where cell value is NA 
+```{r clean, cache=TRUE}
+NAData = data.frame(lapply(trainData,function(x){is.na(x)}),stringsAsFactors=FALSE)
+```
+- Dropped the column where it has more than 50% of missing data
+```{r filter, cache=TRUE}
+ratio = colSums(NAData)/nrow(NAData)
+filterTrainData = trainData[,names(ratio[ratio <= 0.5])]
+```
+- Drop the first 5 column data that should not impact on the model. The X observation index column, user name column and 3 timestamp columns
+```{r filter1, cache=TRUE}
+filterTrainData = subset(filterTrainData,select=-c(X,user_name,raw_timestamp_part_1,raw_timestamp_part_2,cvtd_timestamp))
+```
+- Create a cross validation dataset with 70%:30% ratio
+```{r filter2, cache=TRUE}
+train = createDataPartition(y=filterTrainData$classe,p=0.7,list=FALSE)
+cvTrain = filterTrainData[train,]
+cvTest = filterTrainData[-train,]
+set.seed(647)
+```
+
+Model Building
+--------------
+- Use random forest to model the data with column "classe" as the label data
+- Use out of bag (oob) resampling method to estimate the out of sample error to give an unbiased estimate of the test set error.
+- Search for the best mtry parameter value that give lowest oob error for 10 different setting  
+```{r modeling, cache=TRUE}
+trControl = trainControl(method = "oob",allowParallel = TRUE)
+#oob = train(classe ~.,data=cvTrain,method="rf",trControl=trControl,tuneLength=10,verbose=TRUE)
+load("RF_k10_oob.RData")
+```
+Final model parameters:
+
+- mtry value:
+```{r param_mtry, cache=TRUE,echo=FALSE}
+oob$finalModel$mtry
+```
+- Accuracy:
+```{r param_accuracy, cache=TRUE,echo=FALSE}
+oob$results$Accuracy[oob$results$mtry == oob$finalModel$mtry]
+```
+- Out of bag/sample error:
+```{r param_oob, cache=TRUE,echo=FALSE}
+oob$finalModel$err.rate[oob$finalModel$ntree]
+```
+As the model is trained with OOB resampling method, the accuracy of the model is calculated using (1- oob error)
+
+Cross Validation:
+
+- In random forests, there is no need for cross-validation or a separate test set as the out of bag error is estimated using the sample not used in the tree construction.
+
+- The purpose of this exercise is to prove it using the initialy sampled 30% training data
+- The prediction accuracy on the cross validation data should be close to the final model reported accuracy
+```{r cv, cache=TRUE,echo=FALSE}
+p = predict(oob,cvTest)
+confusionMatrix(p,cvTest$classe)
+```
+
