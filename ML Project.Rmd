@@ -1,6 +1,6 @@
 ---
 title: "Practical Machine Learning Project"
-output: html_document
+output: word_document
 ---
 
 Performing Data Cleaning
@@ -39,8 +39,7 @@ Model Building
 - Search for the best mtry parameter value that give lowest oob error for 10 different setting  
 ```{r modeling, cache=TRUE}
 trControl = trainControl(method = "oob",allowParallel = TRUE)
-#oob = train(classe ~.,data=cvTrain,method="rf",trControl=trControl,tuneLength=10,verbose=TRUE)
-load("RF_k10_oob.RData")
+oob = train(classe ~.,data=cvTrain,method="rf",trControl=trControl,tuneLength=10,verbose=TRUE)
 ```
 Final model parameters:
 
